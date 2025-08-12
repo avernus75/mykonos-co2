@@ -173,7 +173,7 @@ with tab_trav:
         legs = 2 if round_trip else 1
         total_distance = d_km * legs
         trip_kgco2e = compute_emissions(total_distance, pax_factor)
-        flight_details = f"{ac_type} × {total_distance:,.0f} km ({'round-trip' if legs==2 else 'one-way'})"
+        trip_details = f"{ac_type} × {total_distance:,.0f} km ({'round-trip' if legs==2 else 'one-way'})"
 
     else:
         island_name = st.selectbox("Greek island (heli destination)", sorted(GREEK_ISLANDS.keys()))
@@ -196,7 +196,7 @@ with tab_trav:
         legs = 2 if round_trip else 1
         total_distance = d_km * legs
         trip_kgco2e = compute_emissions(total_distance, pax_factor)
-        flight_details = f"{heli_type} × {total_distance:,.0f} km ({'round-trip' if legs==2 else 'one-way'})"
+        trip_details = f"{heli_type} × {total_distance:,.0f} km ({'round-trip' if legs==2 else 'one-way'})"
 
     st.markdown("---")
     st.subheader("🚗 On-island daily transport")
@@ -210,7 +210,7 @@ with tab_trav:
     res = pd.DataFrame({
         "Component": ["Trip to island", "On-island transport"],
         "Details": [
-            flight_details,
+            trip_details,
             f"{veh} × {km_per_day:.0f} km/day × {island_days} days",
         ],
         "kgCO2e": [trip_kgco2e, total_island_kg]
@@ -236,9 +236,8 @@ with tab_trav:
 tab_mvp.subheader("🏛️ Municipal MVP — Upload activities CSV & factors")
 tab_mvp.caption("Columns: ετος,μηνας,κατηγορια,υποκατηγορια,μονάδα,ποσοτητα,σημειωσεις")
 
-# Sidebar factors loader
-st.sidebar.header("Factors (YAML)")
-DEFAULT_FACTORS = b"""
+# Sidebar factors loader — fixed: use a Unicode string (not bytes) and StringIO
+DEFAULT_FACTORS = """
 ηλεκτρική_ενέργεια:
   kgco2e_ανα_kwh: 0.40
 καύσιμα:
@@ -262,10 +261,13 @@ DEFAULT_FACTORS = b"""
 """
 uploaded_yaml = st.sidebar.file_uploader("Upload factors.yaml", type=["yaml","yml"])
 try:
-    factors = yaml.safe_load(io.BytesIO(uploaded_yaml.read())) if uploaded_yaml else yaml.safe_load(io.BytesIO(DEFAULT_FACTORS))
+    if uploaded_yaml:
+        factors = yaml.safe_load(uploaded_yaml.read().decode("utf-8"))
+    else:
+        factors = yaml.safe_load(io.StringIO(DEFAULT_FACTORS))
 except Exception:
     st.sidebar.error("Invalid YAML. Using defaults.")
-    factors = yaml.safe_load(io.BytesIO(DEFAULT_FACTORS))
+    factors = yaml.safe_load(io.StringIO(DEFAULT_FACTORS))
 
 def compute_co2e(row, factors):
     cat = row["κατηγορια"]
